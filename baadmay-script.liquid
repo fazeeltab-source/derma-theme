@@ -1,0 +1,264 @@
+<style>
+/* BaadMay product grid item flex fix */
+.baadmay-product-grid-item .baadmay-para {
+  display: flex !important;
+  gap: 4px !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+}
+.baadmay-product-grid-item .baadmay-price {
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  flex-wrap: wrap !important;
+}
+.baadmay-product-grid-item .baadmay-price p {
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+  font-weight: 400 !important;
+  color: #000 !important;
+  display: inline !important;
+}
+.baadmay-product-grid-item .baadmay-price .baadmay-modal {
+  display: flex !important;
+  align-items: center !important;
+}
+.baadmay-product-grid-item .baadmay-price .baadmay-currency,
+.baadmay-product-grid-item .baadmay-price .baadmay-price-split {
+  display: inline !important;
+  color: #6016eb !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+.baadmay-product-grid-item .logo-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  let loadTimeout;
+  let scrollTimeout;
+
+  // ---------------------------
+  // 🎨 Load BaadMay Assets
+  // ---------------------------
+  function loadBaadmayAssets() {
+    // Load CSS once
+    if (!document.getElementById("baadmay-css")) {
+      const css = document.createElement("link");
+      css.id = "baadmay-css";
+      css.rel = "stylesheet";
+      css.href = "https://baadmay.com/assets/baadmay-styles.css";
+      document.head.appendChild(css);
+    }
+
+    // Always reload BaadMay JS
+    reloadBaadmayScript();
+  }
+
+  function reloadBaadmayScript() {
+    const oldScript = document.getElementById("baadmay-js");
+    if (oldScript) oldScript.remove();
+
+    const script = document.createElement("script");
+    script.id = "baadmay-js";
+    script.src = "https://baadmay.com/assets/baadmay-scripts.js?reload=" + Date.now();
+    
+    // Inject the script into the body to load the BaadMay functionality
+    document.body.appendChild(script);
+    
+    // IMPORTANT: Re-run VenoBox initialization after the BaadMay script loads,
+    // as the script might be dynamically inserting the elements VenoBox targets.
+    script.onload = function() {
+      initializeVenoBoxAndPriceLogic();
+    };
+  }
+
+  // ---------------------------
+  // 🚀 Load Assets on Page Load
+  // ---------------------------
+  window.addEventListener("load", function () {
+    loadBaadmayAssets();
+  });
+
+  // ---------------------------
+  // 🔁 Reload on Cart or Drawer Actions
+  // ---------------------------
+  const selectors = [
+    ".t4s-product-form__submit", 
+    ".t4s-site-nav__cart", 
+    ".t4s-quantity-selector", 
+    ".t4s-drawer__close", 
+    ".t4s-mini_cart__remove",
+    // Keep 'baadmay-popup-close' here to handle reloads even if it also closes the VenoBox
+    ".baadmay-popup-close" 
+  ];
+
+  document.addEventListener("click", function (event) {
+    const clickedEl = event.target.closest(selectors.join(","));
+    if (clickedEl) {
+      clearTimeout(loadTimeout);
+      // Wait 2 seconds to ensure any backend/cart actions are complete
+      loadTimeout = setTimeout(() => {
+        loadBaadmayAssets();
+      }, 3000);
+    }
+  });
+
+  // ---------------------------
+  // 🌀 Reload on Scroll (after 0.5s of no scroll)
+  // ---------------------------
+  window.addEventListener("scroll", function () {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      loadBaadmayAssets();
+    }, 500); 
+  });
+
+  // =========================================================
+  // 🆕 NEW FUNCTIONALITY: VenoBox & Price Logic
+  // =========================================================
+  function initializeVenoBoxAndPriceLogic() {
+    // 1. Initialize VenoBox for the BaadMay modal
+    var venobox = new VenoBox({
+      selector: '.baadmay-modal',
+      closeColor: '#000',
+      closeBackground: 'transparent',
+      overlayColor: 'rgba(0,0,0,.75)',
+      overlayClose: false,
+      customClass: 'baadmay-modal-container',
+    });
+
+    // 2. Handle closing the VenoBox modal when a close button is clicked
+    document.addEventListener('click', function(event) {
+      if (
+        event.target.classList.contains('baadmay-popup-close') || 
+        event.target.closest('.baadmay-popup-close')
+      ) {
+        // Use the VenoBox API to gracefully close the modal
+        venobox.close(); 
+        
+        // The display logic is usually handled by VenoBox's close() method.
+        // Explicitly hiding the overlay may not be necessary, but retained 
+        // from your original code just in case, though it may be redundant.
+        var modalContainer = document.querySelector('.vbox-overlay');
+        if (modalContainer) {
+          modalContainer.style.display = 'none';
+        }
+      }
+    });
+
+    // 3. Calculate and display the installment price (Price / 3)
+    var baadmayElement = document.querySelector('baadmay');
+    if (baadmayElement) {
+      // Extract only digits from the text content of the <baadmay> element
+      var baadmayPriceText = baadmayElement.textContent.replace(/[^0-9]/g, '');
+      var originalPrice = parseInt(baadmayPriceText, 10);
+      
+      if (!isNaN(originalPrice) && originalPrice > 0) {
+        // Calculate the installment amount
+        var baadmayInstallment = Math.floor(originalPrice / 3); 
+
+        // Update the content of the <baadmayprice> element
+        var baadmayPriceElement = document.querySelector('baadmayprice');
+        if (baadmayPriceElement) {
+          baadmayPriceElement.textContent = baadmayInstallment;
+        }
+      }
+    }
+  }
+  
+  // NOTE: This logic is called automatically by reloadBaadmayScript on load,
+  // which is better than calling it on DOMContentLoaded, because it ensures 
+  // the logic is applied *after* the dynamically loaded baadmay-scripts.js runs.
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Function to calculate and update the installment price for a given widget
+  function updateInstallmentPrice(widgetClass, priceClass) {
+    // Find the cart total element (adjust selector if needed based on your theme)
+    const cartTotalElement = document.querySelector('.t4s-cart__totalPrice');
+    if (!cartTotalElement) {
+      return; // Exit if element not found
+    }
+
+    // Parse the cart total (remove 'Rs.' and commas, convert to number)
+    const cartTotalText = cartTotalElement.textContent.trim();
+    const subtotal = parseFloat(cartTotalText.replace('Rs.', '').replace(/,/g, ''));
+    if (isNaN(subtotal)) {
+      return; // Exit if parsing fails
+    }
+
+    // Check if subtotal > 50000 and hide/show the widget
+    const widget = document.querySelector(widgetClass);
+    if (subtotal > 15000) {
+      if (widget) {
+        widget.style.display = 'none';
+      } else {
+      }
+    } else {
+      if (widget) {
+        widget.style.display = ''; // Or 'block' if you prefer
+      } else {
+      }
+    }
+
+    // Recalculate installment price (same logic as Liquid: subtotal * 1.15 / 3, floored)
+    const installmentPrice = Math.floor((subtotal * 1.15) / 3);
+
+    // Find and update the widget's price element (adjust selector if needed)
+    const priceElement = document.querySelector('.baadmay-price-drawer baadmaypricerre');
+    if (priceElement) {
+      priceElement.textContent = installmentPrice.toLocaleString(); // Format with commas if needed
+    } else {
+    }
+  }
+
+  // Function to update both widgets if they exist
+  function updateAllWidgets() {
+    // Update cart page widget
+    if (document.querySelector('.baadmay-cart')) {
+      updateInstallmentPrice('.baadmay-cart', '.price-divide-cart');
+    } else {
+    }
+    // Update cart drawer widget
+    if (document.querySelector('.baadmay-drawer')) {
+      updateInstallmentPrice('.baadmay-drawer', '.price-divide-drawer');
+    } else {
+    }
+  }
+
+  // Initial update on page load
+  updateAllWidgets();
+
+  // Observe changes to the cart prices container (persistent parent element)
+  const cartPricesContainer = document.querySelector('[data-cart-prices]');
+  if (cartPricesContainer) {
+    const observer = new MutationObserver(function(mutations) {
+      // Debounce to avoid multiple calls for the same update
+      clearTimeout(window.baadMayUpdateTimeout);
+      window.baadMayUpdateTimeout = setTimeout(updateAllWidgets, 100);
+    });
+    observer.observe(cartPricesContainer, { childList: true, subtree: true, characterData: true });
+  } else {
+  }
+
+  // Also listen for Shopify's cart update events (if available in your theme)
+  // Some themes trigger custom events like 'cart:updated' – check your theme's docs
+  document.addEventListener('cart:updated', function() {
+    updateAllWidgets();
+  });
+
+  // Fallback: Check for updates every 2 seconds (remove in production if not needed)
+  setInterval(function() {
+    updateAllWidgets();
+  }, 1000); 
+});
+</script>
